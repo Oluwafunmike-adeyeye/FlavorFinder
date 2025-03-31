@@ -1,95 +1,300 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { FiSearch, FiDollarSign, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import dynamic from 'next/dynamic';
+import { BasicErrorBoundary } from '../components/BasicErrorBoundary';
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+// Dynamic imports 
+const RecipeAnimation = dynamic(() => import('../components/RecipeAnimation'), { 
+  ssr: false,
+  loading: () => <div className="h-48 flex items-center justify-center text-purple-500">Loading recipes...</div>
+});
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+const LoadingAnimation = dynamic(() => import('../components/LoadingSpinner'), { 
+  ssr: false,
+  loading: () => <div className="h-48 flex items-center justify-center text-purple-500">Loading...</div>
+});
+
+const ErrorAnimation = dynamic(() => import('../components/ErrorAnimation'), { 
+  ssr: false,
+  loading: () => <div className="h-48 flex items-center justify-center text-purple-500">Loading error handler...</div>
+});
+
+interface Meal {
+  idMeal: string;
+  strMeal: string;
+  strMealThumb: string;
+  ingredients: { name: string; measure: string }[];
+  estimatedCalories: number;
+  estimatedCost: number;
 }
+
+const RecipeSearch = () => {
+  const [query, setQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [currentCost, setCurrentCost] = useState(0);
+  const [exchangeRate, setExchangeRate] = useState(0.0012);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6); 
+
+  // Fetch exchange rate from our API route
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await axios.get('/api/exchange');
+        setExchangeRate(response.data.rates.USD);
+      } catch (error) {
+        console.error("Using default exchange rate after error:", error);
+      }
+    };
+    fetchExchangeRate();
+  }, []);
+
+  // Fetch recipes through our API route
+  const { data: meals, isLoading, error } = useQuery({
+    queryKey: ['meals', query],
+    queryFn: async () => {
+      if (!query.trim()) return [];
+      
+      const response = await axios.get(`/api/recipes?q=${query}`);
+      if (!response.data || response.data.length === 0) return [];
+
+      return response.data.map((meal: any) => {
+        const ingredients = [];
+        for (let i = 1; i <= 20; i++) {
+          const ingredient = meal[`strIngredient${i}`];
+          if (ingredient?.trim()) {
+            ingredients.push({
+              name: ingredient,
+              measure: meal[`strMeasure${i}`] || ''
+            });
+          }
+        }
+
+        return {
+          ...meal,
+          ingredients,
+          estimatedCalories: calculateCalories(ingredients),
+          estimatedCost: calculateCost(ingredients)
+        };
+      });
+    },
+    enabled: query.length > 2,
+    retry: 2,
+    staleTime: 1000 * 60 * 5 
+  });
+
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentMeals = meals?.slice(indexOfFirstItem, indexOfLastItem) || [];
+  const totalPages = Math.ceil((meals?.length || 0) / itemsPerPage);
+
+  // Change page
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  const nextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  const prevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
+
+  // Nutrition calculation
+  const calculateCalories = (ingredients: {name: string}[]) => {
+    const proteinCount = ingredients.filter(i => 
+      /chicken|beef|fish|egg|meat/i.test(i.name)
+    ).length;
+    const carbCount = ingredients.filter(i =>
+      /rice|pasta|bread|potato|flour/i.test(i.name)
+    ).length;
+    const vegCount = ingredients.filter(i =>
+      /tomato|onion|pepper|vegetable|leaf/i.test(i.name)
+    ).length;
+
+    return Math.round(200 + (proteinCount * 120) + (carbCount * 80) + (vegCount * 30));
+  };
+
+  // Cost calculation in Naira
+  const calculateCost = (ingredients: {name: string}[]) => {
+    const baseCost = 500;
+    const proteinCost = ingredients.filter(i => 
+      /chicken|beef|fish|egg|meat/i.test(i.name)
+    ).length * 350;
+    const otherCost = ingredients.length * 150;
+    
+    return baseCost + proteinCost + otherCost;
+  };
+
+  const handleConvert = (cost: number) => {
+    setCurrentCost(cost * exchangeRate);
+    setShowModal(true);
+  };
+
+  return (
+    <BasicErrorBoundary>
+      <div className="min-h-screen bg-purple-50 p-4 md:p-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-4xl font-bold text-purple-800 mb-4">Recipe Finder</h1>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search recipes..."
+                className="w-full p-4 rounded-lg shadow-lg border border-purple-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search recipes"
+              />
+              <FiSearch className="absolute right-4 top-4 text-purple-500 text-xl" />
+            </div>
+          </motion.div>
+
+          {!query.trim() ? (
+            <div className="mt-10 pt-10">
+              <RecipeAnimation />
+              <p className="text-center text-purple-600 mt-6 font-semibold">Search for delicious recipes</p>
+            </div>
+          ) : isLoading ? (
+            <LoadingAnimation />
+          ) : error ? (
+            <ErrorAnimation message={error instanceof Error ? error.message : 'Failed to load recipes'} />
+          ) : meals?.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-12"
+            >
+              <p className="text-purple-600 text-lg">No recipes found for "{query}"</p>
+            </motion.div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {currentMeals.map((meal: Meal) => (
+                  <motion.div
+                    key={meal.idMeal}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.03 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all"
+                  >
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={meal.strMealThumb}
+                        alt={meal.strMeal}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-purple-800 mb-2 truncate" title={meal.strMeal}>
+                        {meal.strMeal}
+                      </h3>
+                      <div className="space-y-2 mb-3">
+                        <p className="text-purple-600">
+                          <span className="font-semibold">Calories:</span> {meal.estimatedCalories}
+                        </p>
+                        <p className="text-purple-700 font-bold">
+                          <span className="font-semibold">Cost:</span> ₦{meal.estimatedCost}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleConvert(meal.estimatedCost)}
+                        className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg flex items-center justify-center transition-colors"
+                        aria-label={`Convert ${meal.strMeal} cost to USD`}
+                      >
+                        <FiDollarSign className="mr-2" />
+                        Convert to USD
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-8">
+                  <nav className="inline-flex rounded-md shadow">
+                    <button
+                      onClick={prevPage}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 rounded-l-md border border-purple-300 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                    >
+                      <FiChevronLeft className="h-5 w-5" />
+                    </button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                      <button
+                        key={number}
+                        onClick={() => paginate(number)}
+                        className={`px-4 py-1 border-t border-b border-purple-300 ${currentPage === number ? 'bg-purple-500 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                      >
+                        {number}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={nextPage}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-1 rounded-r-md border border-purple-300 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+                    >
+                      <FiChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* USD Conversion Modal */}
+          {showModal && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            >
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                className="bg-white p-6 rounded-lg max-w-sm w-full"
+              >
+                <h3 className="text-xl font-bold text-purple-800 mb-4">
+                  USD Conversion
+                </h3>
+                <div className="space-y-2">
+                  <p className="text-purple-600">${currentCost.toFixed(2)}</p>
+                  <p className="text-sm text-purple-400">
+                    Exchange rate: $1 ≈ ₦{(1/exchangeRate).toFixed(2)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="mt-6 w-full bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </BasicErrorBoundary>
+  );
+};
+
+export default RecipeSearch;
