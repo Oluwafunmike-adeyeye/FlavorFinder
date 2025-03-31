@@ -1,4 +1,4 @@
-<h1>Flavor Finder PH</h1>
+<h1>FlavorFinder</h1>
 <p>A culinary application built with Next.js that allows users to search recipes, view nutritional information, and calculate costs with currency conversion. Live at: <a href="https://flavorfinder-ph.netlify.app/" target="_blank">flavorfinder-ph.netlify.app</a></p>
 
 <h2>Getting Started</h2>
