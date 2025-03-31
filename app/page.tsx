@@ -51,6 +51,7 @@ const RecipeSearch = () => {
   const [exchangeRate, setExchangeRate] = useState(0.0012);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6); 
+  
 
   // Fetch exchange rate from our API route
   useEffect(() => {
@@ -67,6 +68,7 @@ const RecipeSearch = () => {
 
   // Fetch recipes through our API route
   const { data: meals, isLoading, error } = useQuery<Meal[]>({
+    
     queryKey: ['meals', query],
     queryFn: async () => {
       if (!query.trim()) return [];
@@ -211,9 +213,15 @@ const RecipeSearch = () => {
                     <div className="relative h-48 overflow-hidden">
                       <Image
                         src={meal.strMealThumb}
-                        alt={meal.strMeal}
+                        alt={meal.strMeal || 'Meal image'}
                         width={300}
                         height={200}
+                        quality={80} 
+                        placeholder="blur" 
+                        blurDataURL="data:image/png;base64,..." 
+                        onError={(e) => {
+                          e.currentTarget.src = '/placeholder.jpg';
+                        }}
                         className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                         loading="lazy"
                       />
