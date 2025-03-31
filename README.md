@@ -64,7 +64,7 @@ cd flavor-finder</code></pre>
 Built with a focus on:<br>
 - Delightful user experience with animations<br>
 - Clean, card-based interface<br>
-- Purple color theme as requested by client<br>
+- Purple color theme<br>
 - Comprehensive nutrition and cost information
 </p>
 
