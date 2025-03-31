@@ -26,7 +26,6 @@ export async function GET(request: Request) {
     );
     const locationData = await nominatimResponse.json();
 
-    // TypeScript interface
     interface OverpassElement {
       id: number;
       lat?: number;
