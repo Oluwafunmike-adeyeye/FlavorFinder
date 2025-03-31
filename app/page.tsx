@@ -212,7 +212,7 @@ const RecipeSearch = () => {
                   >
                     <div className="relative h-48 overflow-hidden">
                       <Image
-                        src={meal.strMealThumb}
+                        src={meal.strMealThumb?.replace('http://', 'https://')}
                         alt={meal.strMeal || 'Meal image'}
                         width={300}
                         height={200}
