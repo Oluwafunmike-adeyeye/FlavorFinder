@@ -43,12 +43,6 @@ cd flavor-finder</code></pre>
   <li><strong>Restaurant Finder:</strong> /api/restaurants?lat={latitude}&lon={longitude}</li>
 </ul>
 
-<h2>Deployment</h2>
-<p>The application is automatically deployed to Netlify on every push to main branch:</p>
-<pre><code>1. Push changes to GitHub repository
-2. Netlify automatically builds and deploys
-3. Updates go live at https://flavorfinder-ph.netlify.app/</code></pre>
-
 <h2>Contributing</h2>
 <p>We welcome contributions! Please follow these steps:</p>
 <ol>
