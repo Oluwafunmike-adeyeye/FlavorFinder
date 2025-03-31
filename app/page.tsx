@@ -5,7 +5,28 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { FiSearch, FiDollarSign, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { BasicErrorBoundary } from '../components/BasicErrorBoundary';
+
+// Type definitions
+interface Ingredient {
+  name: string;
+  measure: string;
+}
+
+interface MealAPIResponse {
+  idMeal: string;
+  strMeal: string;
+  strMealThumb: string;
+  [key: `strIngredient${number}`]: string | undefined;
+  [key: `strMeasure${number}`]: string | undefined;
+}
+
+interface Meal extends MealAPIResponse {
+  ingredients: Ingredient[];
+  estimatedCalories: number;
+  estimatedCost: number;
+}
 
 // Dynamic imports 
 const RecipeAnimation = dynamic(() => import('../components/RecipeAnimation'), { 
@@ -23,15 +44,6 @@ const ErrorAnimation = dynamic(() => import('../components/ErrorAnimation'), {
   loading: () => <div className="h-48 flex items-center justify-center text-purple-500">Loading error handler...</div>
 });
 
-interface Meal {
-  idMeal: string;
-  strMeal: string;
-  strMealThumb: string;
-  ingredients: { name: string; measure: string }[];
-  estimatedCalories: number;
-  estimatedCost: number;
-}
-
 const RecipeSearch = () => {
   const [query, setQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -46,30 +58,33 @@ const RecipeSearch = () => {
       try {
         const response = await axios.get('/api/exchange');
         setExchangeRate(response.data.rates.USD);
-      } catch (error) {
-        console.error("Using default exchange rate after error:", error);
+      } catch (err) {
+        console.error("Using default exchange rate after error:", err);
       }
     };
     fetchExchangeRate();
   }, []);
 
   // Fetch recipes through our API route
-  const { data: meals, isLoading, error } = useQuery({
+  const { data: meals, isLoading, error } = useQuery<Meal[]>({
     queryKey: ['meals', query],
     queryFn: async () => {
       if (!query.trim()) return [];
       
-      const response = await axios.get(`/api/recipes?q=${query}`);
+      const response = await axios.get<MealAPIResponse[]>(`/api/recipes?q=${query}`);
       if (!response.data || response.data.length === 0) return [];
 
-      return response.data.map((meal: any) => {
-        const ingredients = [];
+      return response.data.map((meal) => {
+        const ingredients: Ingredient[] = [];
         for (let i = 1; i <= 20; i++) {
-          const ingredient = meal[`strIngredient${i}`];
+          const ingredientKey = `strIngredient${i}` as const;
+          const measureKey = `strMeasure${i}` as const;
+          const ingredient = meal[ingredientKey];
+          
           if (ingredient?.trim()) {
             ingredients.push({
               name: ingredient,
-              measure: meal[`strMeasure${i}`] || ''
+              measure: meal[measureKey] || ''
             });
           }
         }
@@ -111,7 +126,7 @@ const RecipeSearch = () => {
   }, [query]);
 
   // Nutrition calculation
-  const calculateCalories = (ingredients: {name: string}[]) => {
+  const calculateCalories = (ingredients: Ingredient[]) => {
     const proteinCount = ingredients.filter(i => 
       /chicken|beef|fish|egg|meat/i.test(i.name)
     ).length;
@@ -126,7 +141,7 @@ const RecipeSearch = () => {
   };
 
   // Cost calculation in Naira
-  const calculateCost = (ingredients: {name: string}[]) => {
+  const calculateCost = (ingredients: Ingredient[]) => {
     const baseCost = 500;
     const proteinCost = ingredients.filter(i => 
       /chicken|beef|fish|egg|meat/i.test(i.name)
@@ -179,12 +194,12 @@ const RecipeSearch = () => {
               animate={{ opacity: 1 }}
               className="text-center py-12"
             >
-              <p className="text-purple-600 text-lg">No recipes found for "{query}"</p>
+              <p className="text-purple-600 text-lg">No recipes found for &quot;{query}&quot;</p>
             </motion.div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {currentMeals.map((meal: Meal) => (
+                {currentMeals.map((meal) => (
                   <motion.div
                     key={meal.idMeal}
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -194,9 +209,11 @@ const RecipeSearch = () => {
                     className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all"
                   >
                     <div className="relative h-48 overflow-hidden">
-                      <img
+                      <Image
                         src={meal.strMealThumb}
                         alt={meal.strMeal}
+                        width={300}
+                        height={200}
                         className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                         loading="lazy"
                       />

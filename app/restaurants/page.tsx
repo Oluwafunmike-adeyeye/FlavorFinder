@@ -5,6 +5,27 @@ import { FiMapPin, FiCompass, FiLoader, FiNavigation, FiAlertTriangle, FiRefresh
 import dynamic from 'next/dynamic';
 import { BasicErrorBoundary } from '../../components/BasicErrorBoundary';
 
+interface Coordinates {
+  lat: number;
+  lon: number;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  address: string;
+  distance?: number;
+  coordinates?: Coordinates;
+  rating?: number;
+  lat?: number;
+  lon?: number;
+}
+
+interface RestaurantAPIResponse {
+  restaurants: Restaurant[];
+  area?: string;
+}
+
 const LocationAnimation = dynamic(() => import('../../components/LocationAnimation'), { 
   ssr: false,
   loading: () => (
@@ -14,25 +35,13 @@ const LocationAnimation = dynamic(() => import('../../components/LocationAnimati
   )
 });
 
-interface Restaurant {
-  id: string;
-  name: string;
-  address: string;
-  distance?: number;
-  coordinates?: {
-    lat: number;
-    lon: number;
-  };
-  rating?: number;
-}
-
 function RestaurantFinderComponent() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(true);
   const [geolocationLoading, setGeolocationLoading] = useState(false);
   const [error, setError] = useState('');
-  const [userLocation, setUserLocation] = useState<{lat: number; lon: number}>();
+  const [userLocation, setUserLocation] = useState<Coordinates>();
   const [maxDistance, setMaxDistance] = useState<number>(2000);
   const [showAnimation, setShowAnimation] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,16 +83,16 @@ function RestaurantFinderComponent() {
         throw new Error(friendlyError);
       }
       
-      const data = await response.json();
+      const data: RestaurantAPIResponse = await response.json();
       
       const restaurantsWithDistance = data.restaurants
-        .map((r: any) => ({
+        .map((r) => ({
           ...r,
           distance: r.lat && r.lon ? calculateDistance(r.lat, r.lon) : undefined,
           rating: Math.floor(Math.random() * 5) + 1,
-          coordinates: { lat: r.lat, lon: r.lon }
+          coordinates: { lat: r.lat || 0, lon: r.lon || 0 }
         }))
-        .sort((a: Restaurant, b: Restaurant) => 
+        .sort((a, b) => 
           (a.distance || Infinity) - (b.distance || Infinity)
         );
       
@@ -107,7 +116,6 @@ function RestaurantFinderComponent() {
     }
   }, [calculateDistance]);
 
-  // Get current restaurants for pagination
   const filteredRestaurants = useCallback(() => {
     const filtered = restaurants.filter(r => !r.distance || r.distance <= maxDistance);
     const indexOfLastRestaurant = currentPage * restaurantsPerPage;
@@ -118,10 +126,8 @@ function RestaurantFinderComponent() {
     };
   }, [restaurants, maxDistance, currentPage, restaurantsPerPage]);
 
-  // Calculate total pages
   const totalPages = Math.ceil(filteredRestaurants().totalRestaurants / restaurantsPerPage);
 
-  // Change page
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
   const nextPage = () => {
     if (currentPage < totalPages) {
@@ -134,7 +140,6 @@ function RestaurantFinderComponent() {
     }
   };
 
-  
   useEffect(() => {
     setCurrentPage(1);
   }, [maxDistance]);
@@ -213,6 +218,7 @@ function RestaurantFinderComponent() {
                 onClick={handleRetry}
                 className="p-2 text-purple-600 hover:text-purple-800 transition-colors"
                 disabled={loading || geolocationLoading}
+                aria-label="Refresh restaurants"
               >
                 <FiRefreshCw className={geolocationLoading ? 'animate-spin' : ''} />
               </button>
@@ -249,6 +255,7 @@ function RestaurantFinderComponent() {
                 onChange={(e) => setMaxDistance(Number(e.target.value))}
                 className="bg-white border border-purple-200 rounded px-3 py-1"
                 disabled={loading}
+                aria-label="Select maximum distance"
               >
                 <option value={500}>500m</option>
                 <option value={1000}>1km</option>
@@ -331,6 +338,7 @@ function RestaurantFinderComponent() {
                       onClick={handleRetry}
                       className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg inline-flex items-center transition-colors"
                       disabled={loading}
+                      aria-label="Try again"
                     >
                       <FiCompass className="mr-2" />
                       Try Again
@@ -339,6 +347,7 @@ function RestaurantFinderComponent() {
                       onClick={useDefaultLocation}
                       className="bg-white text-purple-600 border border-purple-300 hover:bg-purple-50 px-6 py-2 rounded-lg inline-flex items-center transition-colors"
                       disabled={loading}
+                      aria-label="Use default location"
                     >
                       <FiMapPin className="mr-2" />
                       Default Location
@@ -348,7 +357,6 @@ function RestaurantFinderComponent() {
               )}
             </div>
 
-            {/* Pagination controls */}
             {totalPages > 1 && (
               <div className="flex justify-center mt-8">
                 <nav className="inline-flex items-center space-x-1">
@@ -356,6 +364,7 @@ function RestaurantFinderComponent() {
                     onClick={prevPage}
                     disabled={currentPage === 1}
                     className={`p-2 rounded-md ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-purple-600 hover:bg-purple-100'}`}
+                    aria-label="Previous page"
                   >
                     <FiChevronLeft className="w-5 h-5" />
                   </button>
@@ -365,6 +374,7 @@ function RestaurantFinderComponent() {
                       key={number}
                       onClick={() => paginate(number)}
                       className={`px-3 py-1 rounded-md ${currentPage === number ? 'bg-purple-600 text-white' : 'text-purple-600 hover:bg-purple-100'}`}
+                      aria-label={`Go to page ${number}`}
                     >
                       {number}
                     </button>
@@ -374,6 +384,7 @@ function RestaurantFinderComponent() {
                     onClick={nextPage}
                     disabled={currentPage === totalPages}
                     className={`p-2 rounded-md ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-purple-600 hover:bg-purple-100'}`}
+                    aria-label="Next page"
                   >
                     <FiChevronRight className="w-5 h-5" />
                   </button>

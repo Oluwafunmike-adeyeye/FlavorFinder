@@ -20,11 +20,28 @@ export async function GET(request: Request) {
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
       {
         headers: {
-          'User-Agent': 'YourAppName (your@email.com)'
-        }
+          'User-Agent': 'YourAppName (your@email.com)',
+        },
       }
     );
     const locationData = await nominatimResponse.json();
+
+    // TypeScript interface
+    interface OverpassElement {
+      id: number;
+      lat?: number;
+      lon?: number;
+      tags?: {
+        name?: string;
+        'addr:street'?: string;
+        'addr:housenumber'?: string;
+        'addr:city'?: string;
+      };
+      center?: {
+        lat: number;
+        lon: number;
+      };
+    }
 
     // Find restaurants
     const overpassQuery = `
@@ -41,30 +58,34 @@ export async function GET(request: Request) {
     const overpassResponse = await fetch(
       `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`
     );
-    const restaurants = await overpassResponse.json();
+    const restaurants: { elements: OverpassElement[] } = await overpassResponse.json();
 
     const results = restaurants.elements
-      .filter((place: any) => place.tags?.name)
-      .map((place: any) => ({
+      .filter((place) => place.tags?.name)
+      .map((place) => ({
         id: place.id.toString(),
-        name: place.tags.name,
+        name: place.tags?.name || 'Unnamed Restaurant',
         address: [
           place.tags?.['addr:street'],
           place.tags?.['addr:housenumber'],
-          place.tags?.['addr:city']
-        ].filter(Boolean).join(', '),
+          place.tags?.['addr:city'],
+        ]
+          .filter(Boolean)
+          .join(', '),
         lat: place.lat || place.center?.lat,
-        lon: place.lon || place.center?.lon
+        lon: place.lon || place.center?.lon,
       }));
 
     return NextResponse.json({
-      area: locationData.address?.city || 
-            locationData.address?.town || 
-            'Nearby',
-      restaurants: results
+      area:
+        locationData.address?.city ||
+        locationData.address?.town ||
+        'Nearby',
+      restaurants: results,
     });
-
   } catch (error) {
+    console.error("Error fetching locations:", error); 
+
     return NextResponse.json(
       { error: 'Failed to fetch locations' },
       { status: 500 }
