@@ -211,20 +211,19 @@ const RecipeSearch = () => {
                     className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all"
                   >
                     <div className="relative h-48 overflow-hidden">
-                      <Image
-                        src={meal.strMealThumb?.replace('http://', 'https://')}
-                        alt={meal.strMeal || 'Meal image'}
-                        width={300}
-                        height={200}
-                        quality={80} 
-                        placeholder="blur" 
-                        blurDataURL="data:image/png;base64,..." 
-                        onError={(e) => {
-                          e.currentTarget.src = '/placeholder.jpg';
-                        }}
-                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                        loading="lazy"
-                      />
+                    <Image
+                      src={`https://www.themealdb.com/images/media/meals/${meal.strMealThumb?.split('/media/meals/').pop()}`}
+                      alt={meal.strMeal || 'Meal image'}
+                      width={300}
+                      height={200}
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      loading="lazy"
+                      unoptimized={true} 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null; 
+                      }}
+                    />
                     </div>
                     <div className="p-4">
                       <h3 className="font-bold text-purple-800 mb-2 truncate" title={meal.strMeal}>
