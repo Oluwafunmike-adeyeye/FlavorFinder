@@ -52,7 +52,6 @@ const RecipeSearch = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6); 
   
-
   // Fetch exchange rate from our API route
   useEffect(() => {
     const fetchExchangeRate = async () => {
@@ -66,17 +65,25 @@ const RecipeSearch = () => {
     fetchExchangeRate();
   }, []);
 
-  // Fetch recipes through our API route
+  // Fetch recipes through our API route with proper typing and caching
   const { data: meals, isLoading, error } = useQuery<Meal[]>({
-    
     queryKey: ['meals', query],
     queryFn: async () => {
       if (!query.trim()) return [];
       
-      const response = await axios.get<MealAPIResponse[]>(`/api/recipes?q=${query}&t=${Date.now()}`);
-      if (!response.data || response.data.length === 0) return [];
+      const response = await axios.get<{ meals: MealAPIResponse[] | null }>(
+        `/api/recipes?q=${query}&timestamp=${Date.now()}`,
+        {
+          headers: {
+            'Cache-Control': 'no-store',
+            'Netlify-CDN-Cache-Control': 'no-store'
+          }
+        }
+      );
 
-      return response.data.map((meal) => {
+      if (!response.data?.meals || response.data.meals.length === 0) return [];
+
+      return response.data.meals.map((meal) => {
         const ingredients: Ingredient[] = [];
         for (let i = 1; i <= 20; i++) {
           const ingredientKey = `strIngredient${i}` as const;
@@ -101,14 +108,15 @@ const RecipeSearch = () => {
     },
     enabled: query.length > 2,
     retry: 2,
-    staleTime: 1000 * 60 * 5 
+    staleTime: 0,
+    gcTime: 0
   });
 
-  // Calculate pagination
+  // Calculate pagination with proper null checks
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentMeals = meals?.slice(indexOfFirstItem, indexOfLastItem) || [];
-  const totalPages = Math.ceil((meals?.length || 0) / itemsPerPage);
+  const totalPages = meals ? Math.ceil(meals.length / itemsPerPage) : 0;
 
   // Change page
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
@@ -127,8 +135,8 @@ const RecipeSearch = () => {
     setCurrentPage(1);
   }, [query]);
 
-  // Nutrition calculation
-  const calculateCalories = (ingredients: Ingredient[]) => {
+  // Nutrition calculation with proper typing
+  const calculateCalories = (ingredients: Ingredient[]): number => {
     const proteinCount = ingredients.filter(i => 
       /chicken|beef|fish|egg|meat/i.test(i.name)
     ).length;
@@ -142,8 +150,8 @@ const RecipeSearch = () => {
     return Math.round(200 + (proteinCount * 120) + (carbCount * 80) + (vegCount * 30));
   };
 
-  // Cost calculation in Naira
-  const calculateCost = (ingredients: Ingredient[]) => {
+  // Cost calculation in Naira with proper typing
+  const calculateCost = (ingredients: Ingredient[]): number => {
     const baseCost = 500;
     const proteinCost = ingredients.filter(i => 
       /chicken|beef|fish|egg|meat/i.test(i.name)
@@ -211,19 +219,20 @@ const RecipeSearch = () => {
                     className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all"
                   >
                     <div className="relative h-48 overflow-hidden">
-                    <Image
-                      src={`https://www.themealdb.com/images/media/meals/${meal.strMealThumb?.split('/media/meals/').pop()}`}
-                      alt={meal.strMeal || 'Meal image'}
-                      width={300}
-                      height={200}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                      loading="lazy"
-                      unoptimized={true} 
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null; 
-                      }}
-                    />
+                      <Image
+                        src={meal.strMealThumb || '/default-meal.jpg'}
+                        alt={meal.strMeal || 'Meal image'}
+                        width={300}
+                        height={200}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                        loading="lazy"
+                        unoptimized={true}
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/default-meal.jpg';
+                        }}
+                      />
                     </div>
                     <div className="p-4">
                       <h3 className="font-bold text-purple-800 mb-2 truncate" title={meal.strMeal}>
@@ -250,7 +259,6 @@ const RecipeSearch = () => {
                 ))}
               </div>
 
-              {/* Pagination controls */}
               {totalPages > 1 && (
                 <div className="flex justify-center mt-8">
                   <nav className="inline-flex rounded-md shadow">
@@ -276,7 +284,7 @@ const RecipeSearch = () => {
                       onClick={nextPage}
                       disabled={currentPage === totalPages}
                       className={`px-3 py-1 rounded-r-md border border-purple-300 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-                    >
+                      >
                       <FiChevronRight className="h-5 w-5" />
                     </button>
                   </nav>
@@ -285,7 +293,6 @@ const RecipeSearch = () => {
             </>
           )}
 
-          {/* USD Conversion Modal */}
           {showModal && (
             <motion.div 
               initial={{ opacity: 0 }}
