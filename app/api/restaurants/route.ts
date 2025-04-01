@@ -2,6 +2,31 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+interface OverpassElement {
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: {
+    lat: number;
+    lon: number;
+  };
+  tags?: {
+    name?: string;
+    'addr:street'?: string;
+    'addr:housenumber'?: string;
+    'addr:city'?: string;
+    [key: string]: string | undefined;
+  };
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const lat = searchParams.get('lat');
@@ -35,8 +60,8 @@ export async function GET(request: Request) {
 
     const data = await response.json();
     
-    // Format results
-    const restaurants = data.elements?.map((place: any) => ({
+    // Format results with proper typing
+    const restaurants: Restaurant[] = data.elements?.map((place: OverpassElement) => ({
       id: place.id.toString(),
       name: place.tags?.name || 'Unnamed Restaurant',
       address: [

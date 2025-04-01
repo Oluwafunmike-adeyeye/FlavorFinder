@@ -199,7 +199,7 @@ const RecipeSearch = () => {
             className="text-center py-12"
           >
             <p className="text-purple-600 text-lg">
-              No recipes found for "{debouncedQuery}". Try a different search term.
+              No recipes found for &quot;{debouncedQuery}&quot;. Try a different search term.
             </p>
           </motion.div>
         ) : (
