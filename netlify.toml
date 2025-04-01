@@ -2,4 +2,8 @@
   for = "/*"
   [headers.values]
     Content-Security-Policy = "img-src https: data:"
-    X-Content-Security-Policy = "img-src https: data:"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"

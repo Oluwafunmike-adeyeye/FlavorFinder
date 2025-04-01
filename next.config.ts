@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Required for Netlify
   output: 'standalone',
-
-  // Basic image optimization 
+  
   images: {
     remotePatterns: [
       {
@@ -18,9 +16,9 @@ const nextConfig = {
     ],
   },
 
-  // Basic security headers 
   async headers() {
     return [
+      // Global security headers
       {
         source: '/:path*',
         headers: [
@@ -28,18 +26,22 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
-      // Allow API CORS (simplified)
+      // API routes with STRONGER cache control
       {
         source: '/api/:path*',
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' },
+          // Critical cache prevention headers:
+          { key: 'Cache-Control', value: 'no-store, max-age=0' },
+          { key: 'CDN-Cache-Control', value: 'no-store' },
+          { key: 'Netlify-CDN-Cache-Control', value: 'no-store' },
+          { key: 'Vary', value: 'query' }, 
         ],
       },
     ];
   },
 
-  // Enable React Strict Mode
   reactStrictMode: true,
 };
 

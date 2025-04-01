@@ -73,7 +73,7 @@ const RecipeSearch = () => {
     queryFn: async () => {
       if (!query.trim()) return [];
       
-      const response = await axios.get<MealAPIResponse[]>(`/api/recipes?q=${query}`);
+      const response = await axios.get<MealAPIResponse[]>(`/api/recipes?q=${query}&t=${Date.now()}`);
       if (!response.data || response.data.length === 0) return [];
 
       return response.data.map((meal) => {
