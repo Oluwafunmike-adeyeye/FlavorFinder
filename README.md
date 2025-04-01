@@ -1,4 +1,4 @@
-<h1>Flavor Finder PH</h1>
+<h1>FlavorFinder</h1>
 <p>A culinary application built with Next.js that allows users to search recipes, view nutritional information, and calculate costs with currency conversion. Live at: <a href="https://flavorfinder-ph.netlify.app/" target="_blank">flavorfinder-ph.netlify.app</a></p>
 
 <h2>Getting Started</h2>
@@ -42,12 +42,6 @@ cd flavor-finder</code></pre>
   <li><strong>Currency Conversion:</strong> /api/exchange</li>
   <li><strong>Restaurant Finder:</strong> /api/restaurants?lat={latitude}&lon={longitude}</li>
 </ul>
-
-<h2>Deployment</h2>
-<p>The application is automatically deployed to Netlify on every push to main branch:</p>
-<pre><code>1. Push changes to GitHub repository
-2. Netlify automatically builds and deploys
-3. Updates go live at https://flavorfinder-ph.netlify.app/</code></pre>
 
 <h2>Contributing</h2>
 <p>We welcome contributions! Please follow these steps:</p>
