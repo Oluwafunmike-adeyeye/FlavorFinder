@@ -1,35 +1,66 @@
 import { NextResponse } from 'next/server';
 
-// Important for Netlify deployment
+
+interface Meal {
+  idMeal: string;
+  strMeal: string;
+  strMealThumb: string;
+  [key: string]: any; 
+}
+
+interface MealDBResponse {
+  meals: Meal[] | null;
+}
+
+// Force dynamic behavior on Netlify
 export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Prevent all caching
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q') || '';
+  const timestamp = Date.now(); 
 
   try {
-    // proper error handling for empty queries
     if (!query.trim()) {
-      return NextResponse.json([], { status: 200 });
+      return NextResponse.json([], { 
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+          'CDN-Cache-Control': 'no-store',
+          'Vary': 'query'
+        }
+      });
     }
 
-    const apiUrl = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`;
+    const apiUrl = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}&t=${timestamp}`;
+    
+    console.log(`Fetching from MealDB: ${apiUrl}`);
     
     const response = await fetch(apiUrl, {
-      next: { revalidate: 3600 } 
+      cache: 'no-store'
     });
     
     if (!response.ok) {
       throw new Error(`MealDB API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: MealDBResponse = await response.json();
     
-    // headers for CORS and caching
-    return NextResponse.json(data.meals || [], {
+    // Validate and normalize response
+    const meals = Array.isArray(data?.meals) ? data.meals : [];
+    const results = meals.map((meal: Meal) => ({
+      ...meal,
+      idMeal: meal.idMeal || '',
+      strMeal: meal.strMeal || 'Unnamed Meal',
+      strMealThumb: meal.strMealThumb || '/default-meal.jpg'
+    }));
+
+    return NextResponse.json(results, {
       headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600'
+        'Cache-Control': 'no-store, max-age=0',
+        'CDN-Cache-Control': 'no-store',
+        'Vary': 'query'
       }
     });
     
@@ -40,7 +71,7 @@ export async function GET(request: Request) {
       { 
         status: 500,
         headers: {
-          'Access-Control-Allow-Origin': '*'
+          'Cache-Control': 'no-store, max-age=0'
         }
       }
     );
