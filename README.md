@@ -1,5 +1,5 @@
 <h1>FlavorFinder</h1>
-<p>A culinary application built with Next.js that allows users to search recipes, view nutritional information, and calculate costs with currency conversion. Live at: <a href="https://flavorfinder-ph.netlify.app/" target="_blank">flavorfinder-ph.netlify.app</a></p>
+<p>A culinary application built with Next.js that allows users to search recipes, search restaurants close to their location and calculate costs with currency conversion. Live at: <a href="https://flavorfinder-ph.netlify.app/" target="_blank">flavorfinder-ph.netlify.app</a></p>
 
 <h2>Getting Started</h2>
 <p>To run this project locally, follow these steps:</p>
